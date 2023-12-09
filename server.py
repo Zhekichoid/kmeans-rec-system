@@ -87,7 +87,6 @@ class KMeansModel():
         rec_songs = [str(i) for i in self.data.iloc[index, 2]]
         rec_songs = list(set(rec_songs)-set(likes_list))
         return rec_songs
-        # print(index)
 
 model = KMeansModel()
 counter = 0
@@ -170,40 +169,4 @@ api.add_resource(EntityList, '/entities')
 if __name__ == "__main__":
     app.run()    
 
-
-    # model.get_recs(['6HZILIRieu8S0iqY8kIKhj', '2SJmZLSvxudk0YzGN3LmxS', '7GbTJsrNPXCoOWJ5vu2vSe'])
-
-    # to_embed = sp.audio_features(to_embed)
-            
-    # for i in to_embed: 
-    #     features.append(list(i.values())[:11])
-    
-    # features = np.array(features)
-    # features = list(np.mean(features,dtype=float, axis=0))
-
-    # for i in range(len(features)):
-    #     features[i] = round(features[i], 3) 
-
-
-    
-
-'''
-    
-
-'''
-
-
-'''
-
-f = open('server/song_data.csv', 'a', newline='') 
-
-
-for features in result:
-    to_write = list(features.values())[:11]
-    print(to_write)
-    writer = csv.writer(f)
-    writer.writerow(to_write)
-
-f.close() 
-'''
 
