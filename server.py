@@ -11,7 +11,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from sklearn.manifold import TSNE
 from scipy.spatial.distance import cdist
 import numpy as np
-import os.path
+import os
 
 app = Flask("RecAPI")
 api = Api(app)
@@ -20,8 +20,8 @@ parser = reqparse.RequestParser()
 parser.add_argument('id', required = True)
 
 
-sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=CLIENT_ID,
-                                                           client_secret=CLIENT_SECRET))
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=os.environ.get('CLIENT_ID'),
+                                                        client_secret=os.environ.get('CLIENT_SECRET')))
 
 with open('song_data.csv', 'r') as f:
     reader = csv.reader(f)
