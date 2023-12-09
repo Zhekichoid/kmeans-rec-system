@@ -20,7 +20,8 @@ parser = reqparse.RequestParser()
 parser.add_argument('id', required = True)
 
 
-sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=CLIENT_ID,
+                                                           client_secret=CLIENT_SECRET))
 
 with open('song_data.csv', 'r') as f:
     reader = csv.reader(f)
