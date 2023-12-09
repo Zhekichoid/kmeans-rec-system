@@ -167,6 +167,6 @@ api.add_resource(Entity, '/entities/<id>')
 api.add_resource(EntityList, '/entities')
 
 if __name__ == "__main__":
-    app.run()    
+    app.run(port=3000)
 
 
