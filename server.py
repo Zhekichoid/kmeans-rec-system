@@ -1,8 +1,10 @@
 from flask import Flask, request
 from flask_restful import Resource, Api, reqparse
+
 import csv
 import plotly.express as px 
 import pandas as pd
+import pandas.io.sql as psql
 import spotipy
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
@@ -11,10 +13,18 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from sklearn.manifold import TSNE
 from scipy.spatial.distance import cdist
 import numpy as np
+
 import os
+import psycopg2
+from dotenv import load_dotenv 
+
+load_dotenv()
 
 app = Flask("RecAPI")
 api = Api(app)
+
+url = os.environ.get('DATABASE_URL')
+connection = psycopg2.connect(url)
 
 parser = reqparse.RequestParser()
 parser.add_argument('id', required = True)
@@ -28,12 +38,8 @@ with open('song_data.csv', 'r') as f:
     entities = {rows[0]:list(rows[1:]) for rows in reader}
     entities.pop('id')
 
-
-
-def write_data(data: list):
-    with open('song_data.csv', 'a', newline='') as f:    
-            writer = csv.writer(f)
-            writer.writerow(data)
+INSERT_ENTITY = """INSERT INTO features VALUES 
+        (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
 
 
 class KMeansModel():
@@ -41,14 +47,14 @@ class KMeansModel():
     def __init__(self) -> None:    
         self.cluster_pipeline = Pipeline([('scaler', StandardScaler()), ('kmeans', KMeans(n_clusters=3))])
         
-        if os.path.isfile('kmeans_data.csv'):
-            self.data = pd.read_csv('kmeans_data.csv')
-
-        else:
+        kmeans_dataframe = psql.read_sql('SELECT * FROM KMEANS', connection)
+        if len(kmeans_dataframe) == 0:
             self.recalculate()
+        else:
+            self.data = kmeans_dataframe
 
         fig = px.scatter(
-        self.data, x='x', y='y', color='cluster', hover_data=['x', 'y', 'id'])
+        self.data, x='x', y='y', color='cluster', hover_data=['x', 'y', 'entity_id'])
         fig.show()
 
 
@@ -144,7 +150,9 @@ class Entity(Resource):
 
         new_entity = [id] + features 
         entities[id] = features
-        write_data(new_entity)
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(INSERT_ENTITY, tuple(new_entity))
 
         global counter
         counter += 1 
@@ -152,7 +160,7 @@ class Entity(Resource):
             model.recalculate()
             counter = 0
 
-        return entities[id], 201
+        return {"message": f"Entity {id} successfully added."}, 201
             
 class EntityList(Resource):
     def get(self):        
@@ -167,6 +175,6 @@ api.add_resource(Entity, '/entities/<id>')
 api.add_resource(EntityList, '/entities')
 
 if __name__ == "__main__":
-    app.run(port=3000)
+    app.run()
 
 
