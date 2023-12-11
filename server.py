@@ -50,10 +50,6 @@ class KMeansModel():
         else:
             self.data = kmeans_dataframe
 
-        #fig = px.scatter(
-        #self.data, x='x', y='y', color='cluster', hover_data=['x', 'y', 'entity_id'])
-        #fig.show()
-
 
 
     def recalculate(self):
