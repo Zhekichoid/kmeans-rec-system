@@ -85,8 +85,8 @@ class KMeansModel():
         entities_center = np.mean(coords, axis=0)
         distances = cdist(entities_center, self.data[['x', 'y']], 'cosine')
         index = list(np.argsort(distances)[:, :n_songs][0])
-    
-        rec_songs = [str(i) for i in self.data.iloc[index, 2]]
+
+        rec_songs = [str(i) for i in self.data.iloc[index, 3]]
         rec_songs = list(set(rec_songs)-set(likes_list))
         return rec_songs
 
