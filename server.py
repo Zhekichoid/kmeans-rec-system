@@ -33,11 +33,6 @@ parser.add_argument('id', required = True)
 sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=os.environ.get('CLIENT_ID'),
                                                         client_secret=os.environ.get('CLIENT_SECRET')))
 
-with open('song_data.csv', 'r') as f:
-    reader = csv.reader(f)
-    entities = {rows[0]:list(rows[1:]) for rows in reader}
-    entities.pop('id')
-
 INSERT_ENTITY = """INSERT INTO features VALUES 
         (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
 
@@ -53,38 +48,41 @@ class KMeansModel():
         else:
             self.data = kmeans_dataframe
 
-        fig = px.scatter(
-        self.data, x='x', y='y', color='cluster', hover_data=['x', 'y', 'entity_id'])
-        fig.show()
+        #fig = px.scatter(
+        #self.data, x='x', y='y', color='cluster', hover_data=['x', 'y', 'entity_id'])
+        #fig.show()
 
 
 
     def recalculate(self):
-        entities_data = pd.read_csv('song_data.csv')
+        entities_dataframe = psql.read_sql('SELECT * FROM FEATURES', connection)
 
-        X = entities_data.select_dtypes(np.number)
+        X = entities_dataframe.select_dtypes(np.number)
         self.cluster_pipeline.fit(X)
-        entities_data['cluster'] = self.cluster_pipeline.predict(X)
+        entities_dataframe['cluster'] = self.cluster_pipeline.predict(X)
 
         tsne_pipeline = Pipeline([('scaler', StandardScaler()), ('tsne', TSNE(n_components=2, verbose=1))])
         entities_embedding = tsne_pipeline.fit_transform(X)
         
         projection = pd.DataFrame(columns=['x', 'y'], data=entities_embedding)
-        projection['id'] = entities_data['id']
-        projection['cluster'] = entities_data['cluster']
+        projection['entity_id'] = entities_dataframe['entity_id']
+        projection['cluster'] = entities_dataframe['cluster']
 
         self.data = projection
-        self.data.to_csv('kmeans_data.csv', index=False)
+        self.data.to_sql('kmeans', con=connection)
 
     
     def get_recs(self, likes_list, n_songs=20):
         coords = []
+
         
         for like in likes_list:
-
-            x = self.data[self.data["id"] == like]['x']
-            y = self.data[self.data["id"] == like]['y']
-            coords.append([[float(x),float(y)]])
+            try:
+                x = self.data[self.data["entity_id"] == like]['x']
+                y = self.data[self.data["entity_id"] == like]['y']
+                coords.append([[float(x.iloc[0]),float(y.iloc[0])]])
+            except IndexError:
+                continue
         
         entities_center = np.mean(coords, axis=0)
         distances = cdist(entities_center, self.data[['x', 'y']], 'cosine')
@@ -101,7 +99,12 @@ counter = 0
 class Entity(Resource):
 
     def get(self, id):
-        return entities[id], 200
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT * FROM FEATURES WHERE entity_id = %s', (id,))
+                result = cursor.fetchone()
+        
+        return result, 200
     
     def post(self, id):
         args = request.args
@@ -149,7 +152,6 @@ class Entity(Resource):
 
 
         new_entity = [id] + features 
-        entities[id] = features
         with connection:
             with connection.cursor() as cursor:
                 cursor.execute(INSERT_ENTITY, tuple(new_entity))
@@ -167,7 +169,7 @@ class EntityList(Resource):
         args = request.args
         likes = args['like_ids'].split(" ")
 
-        print(likes)
+        #print(likes)
         return model.get_recs(likes)
 
 
