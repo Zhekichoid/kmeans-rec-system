@@ -1,5 +1,6 @@
 from flask import Flask, request
 from flask_restful import Resource, Api, reqparse
+from sqlalchemy import create_engine
 
 import csv
 import plotly.express as px 
@@ -25,6 +26,7 @@ api = Api(app)
 
 url = os.environ.get('DATABASE_URL')
 connection = psycopg2.connect(url)
+engine = create_engine(os.environ.get('DATABASE_URL'))
 
 parser = reqparse.RequestParser()
 parser.add_argument('id', required = True)
@@ -42,7 +44,7 @@ class KMeansModel():
     def __init__(self) -> None:    
         self.cluster_pipeline = Pipeline([('scaler', StandardScaler()), ('kmeans', KMeans(n_clusters=3))])
         
-        kmeans_dataframe = psql.read_sql('SELECT * FROM KMEANS', connection)
+        kmeans_dataframe = psql.read_sql('SELECT * FROM KMEANS', engine)
         if len(kmeans_dataframe) == 0:
             self.recalculate()
         else:
@@ -55,7 +57,7 @@ class KMeansModel():
 
 
     def recalculate(self):
-        entities_dataframe = psql.read_sql('SELECT * FROM FEATURES', connection)
+        entities_dataframe = psql.read_sql('SELECT * FROM FEATURES', engine)
 
         X = entities_dataframe.select_dtypes(np.number)
         self.cluster_pipeline.fit(X)
@@ -69,12 +71,12 @@ class KMeansModel():
         projection['cluster'] = entities_dataframe['cluster']
 
         self.data = projection
-        self.data.to_sql('kmeans', con=connection)
+        self.data.to_sql('kmeans', con=engine, if_exists='replace')
 
     
     def get_recs(self, likes_list, n_songs=20):
         coords = []
-
+        print(self.data)
         
         for like in likes_list:
             try:
@@ -159,8 +161,8 @@ class Entity(Resource):
         global counter
         counter += 1 
         if(counter == 9):
-            model.recalculate()
             counter = 0
+            model.recalculate()
 
         return {"message": f"Entity {id} successfully added."}, 201
             
